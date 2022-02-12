@@ -157,23 +157,23 @@ func RegistredMetrics() {
 		prometheusVmNetRec)
 }
 
-func NewVmwareHostMetrics(host string, username string, password string, logger *log.Logger) {
+func NewVmwareHostMetrics(host string, username string, password string, logger *log.Logger) error {
 	ctx := context.Background()
 	c, err := NewClient(ctx, host, username, password)
 	if err != nil {
-		logger.Fatal(err)
+		return err
 	}
 	defer c.Logout(ctx)
 	m := view.NewManager(c.Client)
 	v, err := m.CreateContainerView(ctx, c.ServiceContent.RootFolder, []string{"HostSystem"}, true)
 	if err != nil {
-		logger.Fatal(err)
+		return err
 	}
 	defer v.Destroy(ctx)
 	var hss []mo.HostSystem
 	err = v.Retrieve(ctx, []string{"HostSystem"}, []string{"summary"}, &hss)
 	if err != nil {
-		logger.Fatal(err)
+		return err
 	}
 	for _, hs := range hss {
 		prometheusHostPowerState.WithLabelValues(host).Set(powerState(hs.Summary.Runtime.PowerState))
@@ -187,16 +187,16 @@ func NewVmwareHostMetrics(host string, username string, password string, logger 
 	finder := find.NewFinder(c.Client)
 	hs, err := finder.DefaultHostSystem(ctx)
 	if err != nil {
-		logger.Fatal(err)
+		return err
 	}
 	ss, err := hs.ConfigManager().StorageSystem(ctx)
 	if err != nil {
-		logger.Fatal(err)
+		return err
 	}
 	var hostss mo.HostStorageSystem
 	err = ss.Properties(ctx, ss.Reference(), nil, &hostss)
 	if err != nil {
-		logger.Fatal(err)
+		return err
 	}
 	for _, e := range hostss.StorageDeviceInfo.ScsiLun {
 		lun := e.GetScsiLun()
@@ -209,50 +209,52 @@ func NewVmwareHostMetrics(host string, username string, password string, logger 
 		}
 		prometheusDiskOk.WithLabelValues(host, lun.DeviceName).Set(ok)
 	}
+	return nil
 }
 
-func NewVmwareDsMetrics(host string, username string, password string, logger *log.Logger) {
+func NewVmwareDsMetrics(host string, username string, password string, logger *log.Logger) error {
 	ctx := context.Background()
 	c, err := NewClient(ctx, host, username, password)
 	if err != nil {
-		logger.Fatal(err)
+		return err
 	}
 	defer c.Logout(ctx)
 	m := view.NewManager(c.Client)
 	v, err := m.CreateContainerView(ctx, c.ServiceContent.RootFolder, []string{"Datastore"}, true)
 	if err != nil {
-		logger.Fatal(err)
+		return err
 	}
 	defer v.Destroy(ctx)
 	var dss []mo.Datastore
 	err = v.Retrieve(ctx, []string{"Datastore"}, []string{"summary"}, &dss)
 	if err != nil {
-		logger.Fatal(err)
+		return err
 	}
 	for _, ds := range dss {
 		dsname := ds.Summary.Name
 		prometheusTotalDs.WithLabelValues(dsname, host).Set(float64(ds.Summary.Capacity))
 		prometheusUsageDs.WithLabelValues(dsname, host).Set(float64(ds.Summary.FreeSpace))
 	}
+	return nil
 }
 
-func NewVmwareVmMetrics(host string, username string, password string, logger *log.Logger) {
+func NewVmwareVmMetrics(host string, username string, password string, logger *log.Logger) error {
 	ctx := context.Background()
 	c, err := NewClient(ctx, host, username, password)
 	if err != nil {
-		logger.Fatal(err)
+		return err
 	}
 	defer c.Logout(ctx)
 	m := view.NewManager(c.Client)
 	v, err := m.CreateContainerView(ctx, c.ServiceContent.RootFolder, []string{"VirtualMachine"}, true)
 	if err != nil {
-		logger.Fatal(err)
+		return err
 	}
 	defer v.Destroy(ctx)
 	var vms []mo.VirtualMachine
 	err = v.Retrieve(ctx, []string{"VirtualMachine"}, []string{"summary"}, &vms)
 	if err != nil {
-		logger.Fatal(err)
+		return err
 	}
 	for _, vm := range vms {
 		vmname := vm.Summary.Config.Name
@@ -263,4 +265,5 @@ func NewVmwareVmMetrics(host string, username string, password string, logger *l
 		prometheusVmMemAval.WithLabelValues(vmname, host).Set(float64(vm.Summary.Config.MemorySizeMB))
 		prometheusVmMemUsage.WithLabelValues(vmname, host).Set(float64(vm.Summary.QuickStats.GuestMemoryUsage) * 1024 * 1024)
 	}
+	return nil
 }
