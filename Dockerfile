@@ -1,8 +1,8 @@
 FROM golang:latest as builder
 WORKDIR /app
-COPY go.* .
+COPY ["go.*", "/app/"] 
 RUN go mod download
-COPY . .
+COPY ["./", "/app/"]
 RUN CGO_ENABLED=0 go build -ldflags="-w -s"
 
 FROM scratch
